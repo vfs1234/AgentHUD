@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>AgentHUD</string>
+    <key>CFBundleDisplayName</key>
+    <string>AgentHUD</string>
+    <!-- bundle id kept stable so the existing login-item registration is reused
+         (no duplicate / orphan entry after the rename) -->
+    <key>CFBundleIdentifier</key>
+    <string>com.raf.agentnotifier</string>
+    <key>CFBundleExecutable</key>
+    <string>AgentHUD</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleIconName</key>
+    <string>AppIcon</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>14.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSUserNotificationsUsageDescription</key>
+    <string>AgentHUD 在你的 agent 任务跑完或需要你处理时通知你。</string>
+</dict>
+</plist>

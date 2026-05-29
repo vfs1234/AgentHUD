@@ -1,0 +1,13 @@
+# SwiftPM build output
+.build/
+
+# Assembled .app bundle (regenerate with ./build.sh)
+build/
+
+# macOS
+.DS_Store
+
+# Scratch icon experiments — the real icon flow is AppIcon.svg + ./make-icon.sh
+/make_icon.swift
+/make_icons.swift
+/render_icon_B.swift

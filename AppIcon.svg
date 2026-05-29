@@ -1,0 +1,59 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- deep near-black background with a faint top-down lift -->
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#23262E"/>
+      <stop offset="1" stop-color="#0E1014"/>
+    </linearGradient>
+    <!-- subtle center glow so the dots sit in light -->
+    <radialGradient id="centerGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#3A4256" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#3A4256" stop-opacity="0"/>
+    </radialGradient>
+    <!-- top sheen -->
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <!-- dot glows -->
+    <radialGradient id="glowGreen" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#34D058" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#34D058" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowOrange" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FF9E2A" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#FF9E2A" stop-opacity="0"/>
+    </radialGradient>
+    <!-- glossy top highlight on each dot -->
+    <linearGradient id="dotShine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="squircle">
+      <rect x="0" y="0" width="1024" height="1024" rx="230" ry="230"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#squircle)">
+    <rect x="0" y="0" width="1024" height="1024" fill="url(#bg)"/>
+    <rect x="0" y="0" width="1024" height="1024" fill="url(#centerGlow)"/>
+
+    <!-- top dot: green (running/active) -->
+    <circle cx="512" cy="338" r="150" fill="url(#glowGreen)"/>
+    <circle cx="512" cy="338" r="74" fill="#34D058"/>
+    <ellipse cx="512" cy="306" rx="44" ry="26" fill="url(#dotShine)"/>
+
+    <!-- middle dot: orange (waiting) -->
+    <circle cx="512" cy="512" r="150" fill="url(#glowOrange)"/>
+    <circle cx="512" cy="512" r="74" fill="#FF9E2A"/>
+    <ellipse cx="512" cy="480" rx="44" ry="26" fill="url(#dotShine)"/>
+
+    <!-- bottom dot: gray (done / idle) -->
+    <circle cx="512" cy="686" r="74" fill="#8B92A6"/>
+    <ellipse cx="512" cy="654" rx="44" ry="26" fill="url(#dotShine)"/>
+
+    <!-- global sheen + inner stroke -->
+    <rect x="0" y="0" width="1024" height="430" fill="url(#sheen)"/>
+    <rect x="3" y="3" width="1018" height="1018" rx="228" ry="228" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="3"/>
+  </g>
+</svg>

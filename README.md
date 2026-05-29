@@ -1,35 +1,33 @@
+<!-- 语言：**中文** · [English](README.en.md) -->
+
 # AgentHUD
 
-A tiny macOS menu-bar app + always-on-top floating panel that shows the live
-status of your **Claude Code** and **Codex** agent sessions — so you can tell at
-a glance which task is running, which is waiting for you, and which just
-finished, without hunting through terminal windows.
+一个极简的 macOS 菜单栏 App + 始终置顶的浮窗，实时显示你的 **Claude Code** 和
+**Codex** 会话状态——不用在一堆终端窗口里翻找，一眼就知道哪个任务在跑、哪个在等你、
+哪个刚跑完。
 
-Native Swift (AppKit + SwiftUI), no third-party dependencies. Menu-bar only (no
-Dock icon), auto-launches at login.
+原生 Swift（AppKit + SwiftUI），零第三方依赖。仅菜单栏（无 Dock 图标），开机自启。
 
-## Screenshots
+## 界面截图
 
-The floating panel — one row per session, sorted so anything waiting for you is
-on top:
+浮窗——每行一个会话，「等你处理」的自动排在最上面：
 
-<img src="docs/panel.png" width="380" alt="floating panel" />
+<img src="docs/panel.png" width="380" alt="浮窗" />
 
-Each row, explained:
+每一行的含义：
 
-![interface anatomy](docs/anatomy.png)
+![界面说明](docs/anatomy.png)
 
-| Menu-bar badge | Dropdown menu | Notification |
+| 菜单栏徽标 | 下拉菜单 | 系统通知 |
 |---|---|---|
-| <img src="docs/menubar.png" width="200" alt="menu bar badge" /> | <img src="docs/menu.png" width="320" alt="dropdown menu" /> | <img src="docs/notification.png" width="320" alt="notification" /> |
+| <img src="docs/menubar.png" width="200" alt="菜单栏徽标" /> | <img src="docs/menu.png" width="320" alt="下拉菜单" /> | <img src="docs/notification.png" width="320" alt="系统通知" /> |
 
-The badge turns red with a count when something needs you; the dropdown lists
-every task (click to jump to its app), with *clear completed*, *launch at login*,
-and notification controls.
+有任务等你时，徽标变红并显示待处理数；下拉菜单列出所有任务（点击切到对应 App），
+还有「清除已完成」「开机自启」和通知相关的开关。
 
-## What it shows
+## 显示什么
 
-A compact panel pinned to the top-right of the screen, one row per session:
+一个紧凑的浮窗钉在屏幕右上角，每行一个会话：
 
 ```
 🔵 courseweb  claude            1m20s
@@ -38,59 +36,58 @@ A compact panel pinned to the top-right of the screen, one row per session:
    把首页改成响应式布局，适配移动端
 ```
 
-- **Line 1** — project (basename of the session's cwd) + tool
-- **Line 2** — the session's latest prompt (what the agent is working on)
-- **Right** — elapsed time
+- **第一行** —— 项目名（会话工作目录 cwd 的末级文件夹）+ 工具
+- **第二行** —— 该会话最新的提问（agent 正在做什么）
+- **右侧** —— 已用时
 
-### Status colors
+### 状态颜色
 
-| Dot | State | Meaning |
+| 灯 | 状态 | 含义 |
 |-----|-------|---------|
-| 🔴 red (blinking) | `waiting` | The agent needs you — input or approval |
-| 🔵 blue (breathing) | `running` | The agent is working |
-| 🟢 green | `done` | The turn finished |
-| ⚪ gray (dim) | `stale` | A running task with no events for >120s (terminal closed / killed) |
+| 🔴 红（闪烁） | `waiting` | agent 需要你——输入或批准 |
+| 🔵 蓝（呼吸） | `running` | agent 正在干活 |
+| 🟢 绿 | `done` | 这一轮跑完了 |
+| ⚪ 灰（变淡） | `stale` | 运行中但超过 120 秒无事件（终端被关 / 进程被杀） |
 
-The menu-bar icon summarizes everything: red + count if anything is waiting,
-else blue + count if anything is running, else idle. Click a task (in the panel
-or the menu) to jump to its app (Claude.app / Codex.app).
+菜单栏图标是全局汇总：有「等你」就红色 + 待处理数；否则有「在跑」就蓝色 + 运行数；
+都没有则空闲。点任意任务（浮窗里或菜单里）即可切到它对应的 App（Claude.app /
+Codex.app）。
 
-## How it works
+## 工作原理
 
-![how it works](docs/flow.png)
+![工作原理](docs/flow.png)
 
 ```
 Claude Code hooks ─┐
                    ├─► spool.py <tool> <state>  ──► ~/.ag_notifier/events.jsonl
-Codex hooks ───────┘     (reads hook JSON from stdin)        │ (tailed live)
+Codex hooks ───────┘     (从 stdin 读 hook 的 JSON)          │ (实时 tail)
                                                              ▼
                                                    AgentHUD.app
-                                          (menu bar + floating panel + notifications)
+                                          (菜单栏 + 置顶浮窗 + 系统通知)
 ```
 
-Hooks append one JSON line per lifecycle event to a spool file; the app tails it
-and aggregates by `tool/session_id`. The hook side is fire-and-forget (a single
-local file append) so it never blocks or slows the agent.
+每个生命周期事件，hook 都往一个 spool 文件追加一行 JSON；App 实时 tail 这个文件并按
+`tool/session_id` 聚合。hook 端是「追加即走」（只做一次本地文件追加），绝不阻塞或拖慢
+agent。
 
-## Requirements
+## 环境要求
 
 - macOS 14+
-- Xcode or Command Line Tools (`swift`, `actool`, `codesign`)
+- Xcode 或命令行工具（`swift`、`actool`、`codesign`）
 
-## Build & install
+## 构建与安装
 
 ```bash
-bash make-icon.sh   # render AppIcon.svg → iconset / Assets.xcassets (only needed if you change the icon)
-bash build.sh       # compile, assemble AgentHUD.app, ad-hoc sign, install to ~/Applications
+bash make-icon.sh   # 把 AppIcon.svg 渲染成 iconset / Assets.xcassets（只在改图标时需要）
+bash build.sh       # 编译、组装 AgentHUD.app、ad-hoc 签名、安装到 ~/Applications
 open ~/Applications/AgentHUD.app
 ```
 
-`build.sh` is idempotent — re-run it after any source change. The app
-self-registers as a login item on first launch.
+`build.sh` 是幂等的——改完任何源码重跑即可。App 首次启动会自动注册为登录项（开机自启）。
 
-## Hook setup
+## Hook 接入
 
-1. Copy the spool script and make it executable:
+1. 拷贝 spool 脚本并赋可执行权限：
 
    ```bash
    mkdir -p ~/.ag_notifier
@@ -98,51 +95,50 @@ self-registers as a login item on first launch.
    chmod +x ~/.ag_notifier/spool.py
    ```
 
-2. **Claude Code** — add to `~/.claude/settings.json` (use your absolute home path):
+2. **Claude Code** —— 加到 `~/.claude/settings.json`（路径用你自己的绝对家目录）：
 
    ```json
    "hooks": {
-     "SessionStart":     [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<you>/.ag_notifier/spool.py claude running" }] }],
-     "UserPromptSubmit": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<you>/.ag_notifier/spool.py claude running" }] }],
-     "Notification":     [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<you>/.ag_notifier/spool.py claude waiting" }] }],
-     "Stop":             [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<you>/.ag_notifier/spool.py claude done" }] }]
+     "SessionStart":     [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<你>/.ag_notifier/spool.py claude running" }] }],
+     "UserPromptSubmit": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<你>/.ag_notifier/spool.py claude running" }] }],
+     "Notification":     [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<你>/.ag_notifier/spool.py claude waiting" }] }],
+     "Stop":             [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<你>/.ag_notifier/spool.py claude done" }] }]
    }
    ```
 
-3. **Codex** — add to `~/.codex/config.toml` (then trust the hooks; leave any existing `notify` line untouched):
+3. **Codex** —— 加到 `~/.codex/config.toml`（然后信任这些 hook；已有的 `notify` 行保持不动）：
 
    ```toml
    [[hooks.UserPromptSubmit]]
    [[hooks.UserPromptSubmit.hooks]]
    type = "command"
-   command = "/usr/bin/python3 /Users/<you>/.ag_notifier/spool.py codex running"
+   command = "/usr/bin/python3 /Users/<你>/.ag_notifier/spool.py codex running"
 
    [[hooks.PermissionRequest]]
    [[hooks.PermissionRequest.hooks]]
    type = "command"
-   command = "/usr/bin/python3 /Users/<you>/.ag_notifier/spool.py codex waiting"
+   command = "/usr/bin/python3 /Users/<你>/.ag_notifier/spool.py codex waiting"
 
    [[hooks.Stop]]
    [[hooks.Stop.hooks]]
    type = "command"
-   command = "/usr/bin/python3 /Users/<you>/.ag_notifier/spool.py codex done"
+   command = "/usr/bin/python3 /Users/<你>/.ag_notifier/spool.py codex done"
    ```
 
-   > Codex CLI `exec` (headless) mode does not fire lifecycle hooks — only
-   > interactive sessions do.
+   > Codex CLI 的 `exec`（headless）模式不触发生命周期 hook——只有交互式会话才会触发。
 
-## Where to tweak
+## 改哪里
 
-| Want to change | File |
+| 想改什么 | 文件 |
 |----------------|------|
-| Colors / dot animations / the prompt subtitle line | `Sources/AgentNotifier/TaskListView.swift` |
-| Stale threshold (120s), done auto-clear, aggregation, noise filter | `Sources/AgentNotifier/TaskStore.swift` |
-| Menu-bar icon + dropdown menu | `Sources/AgentNotifier/StatusItemController.swift` |
-| Notification text / sound | `Sources/AgentNotifier/Notifier.swift` |
-| Which app a task jumps to | `Sources/AgentNotifier/AppActivator.swift` |
-| Panel position / sizing | `Sources/AgentNotifier/PanelController.swift` |
-| Spool line format / event→state mapping | `hooks/spool.py` + the hook configs above |
+| 颜色 / 状态灯动画 / 提问摘要行 | `Sources/AgentNotifier/TaskListView.swift` |
+| stale 阈值（120s）、done 自动清除、聚合、噪音过滤 | `Sources/AgentNotifier/TaskStore.swift` |
+| 菜单栏图标 + 下拉菜单 | `Sources/AgentNotifier/StatusItemController.swift` |
+| 通知文案 / 声音 | `Sources/AgentNotifier/Notifier.swift` |
+| 任务点击跳转到哪个 App | `Sources/AgentNotifier/AppActivator.swift` |
+| 浮窗位置 / 尺寸 | `Sources/AgentNotifier/PanelController.swift` |
+| spool 行格式 / 事件→状态映射 | `hooks/spool.py` + 上面的 hook 配置 |
 
-## License
+## 许可
 
-Personal project — use as you like.
+个人项目，随意使用。

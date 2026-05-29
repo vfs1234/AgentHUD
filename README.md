@@ -8,6 +8,25 @@ finished, without hunting through terminal windows.
 Native Swift (AppKit + SwiftUI), no third-party dependencies. Menu-bar only (no
 Dock icon), auto-launches at login.
 
+## Screenshots
+
+The floating panel — one row per session, sorted so anything waiting for you is
+on top:
+
+<img src="docs/panel.png" width="380" alt="floating panel" />
+
+Each row, explained:
+
+![interface anatomy](docs/anatomy.png)
+
+| Menu-bar badge | Dropdown menu | Notification |
+|---|---|---|
+| <img src="docs/menubar.png" width="200" alt="menu bar badge" /> | <img src="docs/menu.png" width="320" alt="dropdown menu" /> | <img src="docs/notification.png" width="320" alt="notification" /> |
+
+The badge turns red with a count when something needs you; the dropdown lists
+every task (click to jump to its app), with *clear completed*, *launch at login*,
+and notification controls.
+
 ## What it shows
 
 A compact panel pinned to the top-right of the screen, one row per session:
@@ -37,6 +56,8 @@ else blue + count if anything is running, else idle. Click a task (in the panel
 or the menu) to jump to its app (Claude.app / Codex.app).
 
 ## How it works
+
+![how it works](docs/flow.png)
 
 ```
 Claude Code hooks ─┐

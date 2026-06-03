@@ -104,7 +104,6 @@ self-registers as a login item on first launch.
 
    ```json
    "hooks": {
-     "SessionStart":     [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<you>/.ag_notifier/spool.py claude running" }] }],
      "UserPromptSubmit": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<you>/.ag_notifier/spool.py claude running" }] }],
      "Notification":     [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<you>/.ag_notifier/spool.py claude waiting" }] }],
      "Stop":             [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<you>/.ag_notifier/spool.py claude done" }] }]

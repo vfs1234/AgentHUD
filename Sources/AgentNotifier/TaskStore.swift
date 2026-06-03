@@ -33,6 +33,9 @@ final class TaskStore: ObservableObject {
     // A "running" task that hasn't emitted any event for this long is treated as
     // stale (terminal closed / process killed before Stop fired) → dimmed gray.
     let staleThreshold: TimeInterval = 120
+    // A running task idle this long is almost certainly finished/abandoned (no
+    // Stop ever fired) → remove it entirely. waiting & done are kept.
+    let removeThreshold: TimeInterval = 900   // 15 min
 
     init() {
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
@@ -94,8 +97,14 @@ final class TaskStore: ObservableObject {
     private func tick() {
         let now = Date()
         for (key, var t) in index {
-            // done tasks stay lit until acknowledged — no auto-removal.
-            if t.state == .running, !t.isStale, now.timeIntervalSince(t.lastUpdate) > staleThreshold {
+            let idle = now.timeIntervalSince(t.lastUpdate)
+            // Auto-remove long-idle running tasks (including ones already gone
+            // stale). done stays until acknowledged; waiting stays (needs you).
+            if t.state == .running, idle > removeThreshold {
+                index[key] = nil
+                continue
+            }
+            if t.state == .running, !t.isStale, idle > staleThreshold {
                 t.isStale = true
                 index[key] = t
             }

@@ -99,7 +99,6 @@ open ~/Applications/AgentHUD.app
 
    ```json
    "hooks": {
-     "SessionStart":     [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<你>/.ag_notifier/spool.py claude running" }] }],
      "UserPromptSubmit": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<你>/.ag_notifier/spool.py claude running" }] }],
      "Notification":     [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<你>/.ag_notifier/spool.py claude waiting" }] }],
      "Stop":             [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<你>/.ag_notifier/spool.py claude done" }] }]

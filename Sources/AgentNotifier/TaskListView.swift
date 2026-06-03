@@ -1,32 +1,40 @@
 import SwiftUI
 
-struct TaskListView: View {
+/// Panel root: a header (status counts + collapse chevron) that is always shown,
+/// plus the full task list when expanded. Collapsed → just the counts pill.
+struct PanelRootView: View {
     @ObservedObject var store: TaskStore
+    @ObservedObject var ui: UIState
     var onSelect: (AgentTask) -> Void = { _ in }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if store.tasks.isEmpty {
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle")
-                        .foregroundStyle(.secondary)
-                        .font(.system(size: 12))
-                    Text("没有运行中的任务")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                    Spacer(minLength: 0)
-                }
-                .frame(height: 30)
-            } else {
-                ForEach(store.tasks) { task in
-                    Button { onSelect(task) } label: { TaskRow(task: task) }
-                        .buttonStyle(.plain)
-                        .help("点击切换到 \(task.tool == "codex" ? "Codex" : "Claude")")
+            HeaderBar(store: store, ui: ui)
+
+            if !ui.collapsed {
+                if store.tasks.isEmpty {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle")
+                            .foregroundStyle(.secondary)
+                            .font(.system(size: 12))
+                        Text("没有运行中的任务")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                        Spacer(minLength: 0)
+                    }
+                    .frame(height: 26)
+                } else {
+                    ForEach(store.tasks) { task in
+                        Button { onSelect(task) } label: { TaskRow(task: task) }
+                            .buttonStyle(.plain)
+                            .help("点击切换到 \(task.tool == "codex" ? "Codex" : "Claude")")
+                    }
                 }
             }
         }
         .padding(10)
-        .frame(width: 300, alignment: .leading)
+        // Expanded = fixed 300 wide; collapsed = hug the counts pill.
+        .frame(width: ui.collapsed ? nil : 300, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(.ultraThinMaterial)
@@ -35,6 +43,59 @@ struct TaskListView: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
         )
+    }
+}
+
+/// Always-visible header: status counts on the left, collapse/expand on the right.
+private struct HeaderBar: View {
+    @ObservedObject var store: TaskStore
+    @ObservedObject var ui: UIState
+
+    var body: some View {
+        HStack(spacing: 10) {
+            // Counts only when collapsed — expanded, the task list already shows
+            // everything, so the numeric summary would be redundant.
+            if ui.collapsed { CountsView(store: store) }
+            Spacer(minLength: 0)
+            Button { ui.toggle() } label: {
+                Image(systemName: ui.collapsed ? "chevron.down" : "chevron.up")
+                    .font(.system(size: 9, weight: .heavy))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20, height: 20)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(ui.collapsed ? "展开" : "收起")
+        }
+        .frame(height: 22)
+    }
+}
+
+/// Numeric progress: 🔴 waiting · 🔵 running · 🟢 done (only non-zero shown).
+private struct CountsView: View {
+    @ObservedObject var store: TaskStore
+
+    var body: some View {
+        let w = store.waitingCount, r = store.runningCount, d = store.doneCount
+        HStack(spacing: 11) {
+            if w == 0 && r == 0 && d == 0 {
+                seg(color: .secondary, text: "空闲")
+            } else {
+                if w > 0 { seg(color: .red, text: "\(w)") }
+                if r > 0 { seg(color: .blue, text: "\(r)") }
+                if d > 0 { seg(color: .green, text: "\(d)") }
+            }
+        }
+        .fixedSize()
+    }
+
+    private func seg(color: Color, text: String) -> some View {
+        HStack(spacing: 5) {
+            Circle().fill(color).frame(width: 7, height: 7)
+            Text(text)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(color == .secondary ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
+        }
     }
 }
 
@@ -57,7 +118,7 @@ private struct TaskRow: View {
             Spacer(minLength: 6)
             ElapsedText(since: task.firstSeen)
         }
-        .frame(height: 30)
+        .frame(width: 280, height: 30)
         .contentShape(Rectangle())
         .opacity(task.isStale ? 0.5 : 1)   // stale 整行变淡 = 不用在意
     }

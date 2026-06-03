@@ -17,7 +17,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             notifier.handle(task: task, newState: newState)
         }
 
-        let panelController = PanelController(store: store)
+        let ui = UIState()
+        let panelController = PanelController(store: store, ui: ui)
         self.panelController = panelController
         panelController.show()
 

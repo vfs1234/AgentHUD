@@ -70,6 +70,8 @@ Codex hooks ───────┘     (从 stdin 读 hook 的 JSON)          
 `tool/session_id` 聚合。hook 端是「追加即走」（只做一次本地文件追加），绝不阻塞或拖慢
 agent。
 
+> 完整的「事件 → 状态」转移图见 [`docs/state-machine.html`](docs/state-machine.html)。
+
 ## 环境要求
 
 - macOS 14+
@@ -99,8 +101,10 @@ open ~/Applications/AgentHUD.app
 
    ```json
    "hooks": {
-     "UserPromptSubmit": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<你>/.ag_notifier/spool.py claude running" }] }],
-     "Notification":     [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<你>/.ag_notifier/spool.py claude waiting" }] }],
+     "UserPromptSubmit":  [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<你>/.ag_notifier/spool.py claude running" }] }],
+     "PostToolUse":       [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<你>/.ag_notifier/spool.py claude running" }] }],
+     "PermissionRequest": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<你>/.ag_notifier/spool.py claude waiting" }] }],
+     "Notification":      [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<你>/.ag_notifier/spool.py claude waiting" }] }],
      "Stop":             [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<你>/.ag_notifier/spool.py claude done" }] }]
    }
    ```

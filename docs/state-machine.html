@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgentHUD · Hook 状态机说明</title>
+<style>
+  :root{
+    --bg:#0e1014; --panel:#16191f; --panel2:#1b1f27; --line:#2a2f3a;
+    --ink:#e6e9ee; --muted:#9aa3b2; --dim:#6b7280;
+    --running:#0a84ff; --waiting:#ff453a; --done:#34d058; --stale:#8b92a6;
+    --accent:#7b8cff;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:radial-gradient(1200px 600px at 50% -10%, #1a1e27 0%, var(--bg) 60%);
+    color:var(--ink); font:15px/1.65 -apple-system,"SF Pro Text","PingFang SC","Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; padding:48px 20px 80px;
+  }
+  .wrap{max-width:920px; margin:0 auto}
+  header{display:flex; align-items:center; gap:16px; margin-bottom:8px}
+  .logo{width:52px;height:52px;border-radius:14px;background:linear-gradient(180deg,#23262e,#0e1014);
+    display:grid;place-items:center;box-shadow:0 6px 22px rgba(0,0,0,.45),inset 0 0 0 1px rgba(255,255,255,.06)}
+  .logo .d{width:11px;height:11px;border-radius:50%;margin:2.5px 0}
+  h1{font-size:26px; margin:0; letter-spacing:.3px}
+  .sub{color:var(--muted); margin:2px 0 0}
+  h2{font-size:17px; margin:38px 0 14px; padding-left:11px; border-left:3px solid var(--accent)}
+  p{color:#cdd3dc}
+  code{background:#0b0d11; border:1px solid var(--line); border-radius:5px; padding:1px 6px; font-family:"SF Mono",ui-monospace,Menlo,monospace; font-size:13px; color:#d7deea}
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel2)); border:1px solid var(--line); border-radius:16px; padding:22px 24px; box-shadow:0 10px 30px rgba(0,0,0,.25)}
+
+  /* pipeline */
+  .pipe{display:flex; align-items:stretch; gap:10px; flex-wrap:wrap; margin-top:6px}
+  .pstep{flex:1; min-width:150px; background:#11141a; border:1px solid var(--line); border-radius:12px; padding:13px 15px}
+  .pstep b{display:block; font-size:14px}
+  .pstep span{color:var(--muted); font-size:12.5px}
+  .parrow{align-self:center; color:var(--dim); font-size:20px}
+
+  /* legend */
+  .legend{display:flex; gap:20px; flex-wrap:wrap; margin:4px 0 0}
+  .lg{display:flex; align-items:center; gap:9px}
+  .dot{width:13px;height:13px;border-radius:50%; box-shadow:0 0 10px currentColor}
+  .lg b{font-size:14px} .lg span{color:var(--muted); font-size:12.5px}
+
+  /* table */
+  table{width:100%; border-collapse:collapse; margin-top:4px; font-size:14px}
+  th,td{text-align:left; padding:11px 12px; border-bottom:1px solid var(--line)}
+  th{color:var(--muted); font-weight:600; font-size:12.5px; letter-spacing:.4px; text-transform:uppercase}
+  td code{font-size:12.5px}
+  tr:last-child td{border-bottom:none}
+  .pill{display:inline-flex;align-items:center;gap:7px;font-weight:600}
+  .pill .dot{width:10px;height:10px}
+
+  .rules li{margin:7px 0}
+  .rules b{color:#fff}
+  .k{color:var(--accent); font-weight:600}
+  .foot{color:var(--dim); font-size:12.5px; margin-top:42px; text-align:center}
+  svg{display:block;width:100%;height:auto}
+  .diagram{overflow-x:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo">
+      <div class="d" style="background:var(--running)"></div>
+      <div class="d" style="background:var(--waiting)"></div>
+      <div class="d" style="background:var(--stale)"></div>
+    </div>
+    <div>
+      <h1>AgentHUD · Hook 状态机</h1>
+      <p class="sub">Claude Code / Codex 的生命周期事件如何变成浮窗里的状态</p>
+    </div>
+  </header>
+
+  <h2>一、数据流</h2>
+  <div class="card">
+    <div class="pipe">
+      <div class="pstep"><b>① Hook 触发</b><span>agent 每个生命周期事件（提交提问 / 需批准 / 结束）调用 spool.py，把事件 JSON 从 stdin 传入</span></div>
+      <div class="parrow">→</div>
+      <div class="pstep"><b>② spool.py 追加</b><span>归一化成一行 JSON，<code>O_APPEND</code> 写入 <code>~/.ag_notifier/events.jsonl</code>。追加即走，绝不阻塞 agent</span></div>
+      <div class="parrow">→</div>
+      <div class="pstep"><b>③ AgentHUD 实时读</b><span>tail 这个文件，按 <code>tool/session_id</code> 聚合，跑下面这台状态机，驱动浮窗 + 菜单栏 + 通知</span></div>
+    </div>
+  </div>
+
+  <h2>二、四个状态</h2>
+  <div class="card">
+    <div class="legend">
+      <div class="lg"><span class="dot" style="background:var(--running);color:var(--running)"></span><div><b>running 运行中</b><br><span>蓝色呼吸 · agent 正在干活</span></div></div>
+      <div class="lg"><span class="dot" style="background:var(--waiting);color:var(--waiting)"></span><div><b>waiting 等待你</b><br><span>红色闪烁 · 需要你输入/批准</span></div></div>
+      <div class="lg"><span class="dot" style="background:var(--done);color:var(--done)"></span><div><b>done 已完成</b><br><span>绿色常亮 · 这一轮跑完了</span></div></div>
+      <div class="lg"><span class="dot" style="background:var(--stale);color:var(--stale)"></span><div><b>stale 无响应</b><br><span>灰色变淡 · running 太久没动静</span></div></div>
+    </div>
+  </div>
+
+  <h2>三、状态机（事件驱动 + 时间驱动）</h2>
+  <div class="card diagram">
+    <svg viewBox="0 0 840 560" role="img" aria-label="状态机图">
+      <defs>
+        <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#7d8696"/></marker>
+        <marker id="arDim" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#525a68"/></marker>
+      </defs>
+
+      <!-- entry -->
+      <circle cx="420" cy="150" r="6" fill="#7b8cff"/>
+      <path d="M420,156 L420,219" stroke="#7d8696" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+      <text x="432" y="186" fill="#aeb6c4" font-size="12.5">首次 <tspan fill="#e6e9ee">UserPromptSubmit</tspan></text>
+
+      <!-- running ↔ waiting (top: r→w, bottom: w→r) -->
+      <path d="M360,241 L233,241" stroke="#7d8696" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+      <text x="296" y="231" text-anchor="middle" fill="#aeb6c4" font-size="11.5">Notification / PermissionRequest</text>
+      <path d="M230,261 L357,261" stroke="#7d8696" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+      <text x="296" y="278" text-anchor="middle" fill="#aeb6c4" font-size="11.5">UserPromptSubmit（你回复）</text>
+
+      <!-- running ↔ done -->
+      <path d="M480,241 L607,241" stroke="#7d8696" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+      <text x="545" y="231" text-anchor="middle" fill="#aeb6c4" font-size="11.5">Stop</text>
+      <path d="M610,261 L483,261" stroke="#7d8696" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+      <text x="545" y="278" text-anchor="middle" fill="#aeb6c4" font-size="11.5">UserPromptSubmit（新一轮）</text>
+
+      <!-- running ↔ stale -->
+      <path d="M404,279 L404,384" stroke="#7d8696" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+      <text x="396" y="338" text-anchor="end" fill="#aeb6c4" font-size="11.5">闲置 120s</text>
+      <path d="M436,384 L436,279" stroke="#7d8696" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+      <text x="444" y="338" fill="#aeb6c4" font-size="11.5">收到任何事件 → 复活</text>
+
+      <!-- removals (dashed) -->
+      <path d="M420,434 L420,491" stroke="#525a68" stroke-width="1.5" fill="none" stroke-dasharray="4 4" marker-end="url(#arDim)"/>
+      <text x="432" y="468" fill="#6b7280" font-size="11.5">再到 15min</text>
+      <path d="M670,279 C670,430 560,508 472,510" stroke="#525a68" stroke-width="1.5" fill="none" stroke-dasharray="4 4" marker-end="url(#arDim)"/>
+      <text x="612" y="430" fill="#6b7280" font-size="11.5">点击 / 清除已完成</text>
+
+      <!-- nodes -->
+      <!-- waiting -->
+      <g>
+        <rect x="110" y="222" width="120" height="56" rx="13" fill="rgba(255,69,58,.12)" stroke="var(--waiting)" stroke-width="1.4"/>
+        <circle cx="132" cy="250" r="6" fill="var(--waiting)"/>
+        <text x="146" y="246" fill="#fff" font-size="14" font-weight="700">等待你</text>
+        <text x="146" y="263" fill="#c98" font-size="11">waiting</text>
+      </g>
+      <text x="170" y="300" text-anchor="middle" fill="#6b7280" font-size="11">一直保留，直到你处理</text>
+
+      <!-- running -->
+      <g>
+        <rect x="360" y="222" width="120" height="56" rx="13" fill="rgba(10,132,255,.14)" stroke="var(--running)" stroke-width="1.6"/>
+        <circle cx="382" cy="250" r="6" fill="var(--running)"/>
+        <text x="396" y="246" fill="#fff" font-size="14" font-weight="700">运行中</text>
+        <text x="396" y="263" fill="#8fb6e8" font-size="11">running</text>
+      </g>
+
+      <!-- done -->
+      <g>
+        <rect x="610" y="222" width="120" height="56" rx="13" fill="rgba(52,208,88,.12)" stroke="var(--done)" stroke-width="1.4"/>
+        <circle cx="632" cy="250" r="6" fill="var(--done)"/>
+        <text x="646" y="246" fill="#fff" font-size="14" font-weight="700">已完成</text>
+        <text x="646" y="263" fill="#8ad79a" font-size="11">done</text>
+      </g>
+
+      <!-- stale -->
+      <g>
+        <rect x="360" y="386" width="120" height="48" rx="12" fill="rgba(139,146,166,.10)" stroke="var(--stale)" stroke-width="1.3" stroke-dasharray="5 4"/>
+        <circle cx="382" cy="410" r="6" fill="var(--stale)"/>
+        <text x="396" y="406" fill="#d7dbe2" font-size="13.5" font-weight="700">无响应</text>
+        <text x="396" y="421" fill="#8b92a6" font-size="10.5">stale</text>
+      </g>
+
+      <!-- removed -->
+      <g>
+        <rect x="372" y="491" width="96" height="34" rx="17" fill="none" stroke="#525a68" stroke-width="1.3" stroke-dasharray="4 4"/>
+        <text x="420" y="513" text-anchor="middle" fill="#6b7280" font-size="12.5">✕ 移除 / 消失</text>
+      </g>
+    </svg>
+  </div>
+
+  <h2>四、事件 → 状态 映射</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>语义</th><th>Claude Code 事件</th><th>Codex 事件</th><th>结果状态</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>提交提问 / 开始一轮</td>
+          <td><code>UserPromptSubmit</code></td>
+          <td><code>UserPromptSubmit</code></td>
+          <td><span class="pill" style="color:var(--running)"><span class="dot" style="background:var(--running)"></span>running</span></td>
+        </tr>
+        <tr>
+          <td>工具调用后（心跳）</td>
+          <td><code>PostToolUse</code></td>
+          <td><code>PostToolUse</code></td>
+          <td><span class="pill" style="color:var(--running)"><span class="dot" style="background:var(--running)"></span>running</span> <span style="color:var(--muted);font-size:12px">· 刷新，长回合不变灰</span></td>
+        </tr>
+        <tr>
+          <td>需要批准 / 等你输入<br><span style="color:var(--muted);font-size:12px">（含 plan 呈现等批准）</span></td>
+          <td><code>PermissionRequest</code> · <code>Notification</code></td>
+          <td><code>PermissionRequest</code></td>
+          <td><span class="pill" style="color:var(--waiting)"><span class="dot" style="background:var(--waiting)"></span>waiting</span></td>
+        </tr>
+        <tr>
+          <td>一轮结束</td>
+          <td><code>Stop</code></td>
+          <td><code>Stop</code></td>
+          <td><span class="pill" style="color:var(--done)"><span class="dot" style="background:var(--done)"></span>done</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="margin:14px 2px 0;color:var(--muted);font-size:13px">
+      ⚠️ 故意<b>不</b>用 Claude 的 <code>SessionStart</code>：它会给每个后台/恢复的会话都标「运行中」，制造大量幽灵任务。只有你<b>真正发消息</b>（UserPromptSubmit）才算开始。
+    </p>
+    <p style="margin:10px 2px 0;color:var(--muted);font-size:13px">
+      💡 <b>Plan 模式</b>：Claude 呈现 plan 等你批准时<b>只触发 <code style="color:var(--waiting)">PermissionRequest</code></b>（<code>Stop</code> 和 <code>Notification</code> 都不发——是 Claude Code 已知缺口），靠它点亮红灯「等你」。<code style="color:var(--running)">PostToolUse</code> 当心跳，让长回合（&gt;2 分钟）不被误判成灰。
+    </p>
+  </div>
+
+  <h2>五、时间规则（自动转移，无需事件）</h2>
+  <div class="card">
+    <ul class="rules" style="margin:0;padding-left:20px">
+      <li><b>running</b> 闲置 <span class="k">120 秒</span> 没有任何新事件 → 变 <b>stale</b>（灰，可能终端被关/进程被杀，Stop 没发出来）。</li>
+      <li><b>running / stale</b> 闲置 <span class="k">15 分钟</span> → <b>自动移除</b>（彻底从列表消失，防止积压）。</li>
+      <li><b>done</b> → <b>一直保留</b>，直到你<b>点击该任务</b>或菜单选「清除已完成」才消失。</li>
+      <li><b>waiting</b> → <b>一直保留</b>，直到你处理（回复后转 running，或它结束转 done）。</li>
+      <li>收到<b>任何新事件</b> → <code>lastUpdate</code> 刷新，stale 立即「复活」回 running。</li>
+    </ul>
+  </div>
+
+  <h2>六、聚合与过滤</h2>
+  <div class="card">
+    <ul class="rules" style="margin:0;padding-left:20px">
+      <li><b>聚合键</b> = <code>tool / session_id</code>。同一会话的新事件覆盖旧状态（最新状态生效）。</li>
+      <li><b>噪音过滤</b>：<code>cwd</code> 为空、或正好等于家目录的会话<b>不显示</b>（桌面 app 的后台内部会话，否则会显示成用户名 “raf”）。</li>
+      <li><b>项目名</b> = <code>cwd</code> 末级目录；<b>摘要行</b> = 该会话最近一次 <code>UserPromptSubmit</code> 的提问。</li>
+    </ul>
+    <p style="margin:16px 2px 0;color:var(--muted);font-size:12.5px">spool 行格式：</p>
+    <pre style="margin:6px 0 0;background:#0b0d11;border:1px solid var(--line);border-radius:8px;padding:13px 15px;overflow-x:auto;font-family:'SF Mono',ui-monospace,Menlo,monospace;font-size:12px;color:#cfd6e2">{"ts":1780000000.0,"tool":"claude","state":"running","session_id":"a1b2…","cwd":"/Users/raf/Desktop/agents/courseweb","event":"UserPromptSubmit","prompt":"修复支付回调超时"}</pre>
+  </div>
+
+  <p class="foot">AgentHUD · 阈值（120s / 15min）可在 <code>Sources/AgentNotifier/TaskStore.swift</code> 调整 · 事件映射在 <code>~/.claude/settings.json</code> 与 <code>~/.codex/config.toml</code></p>
+
+</div>
+</body>
+</html>

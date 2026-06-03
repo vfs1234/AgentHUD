@@ -74,6 +74,8 @@ Hooks append one JSON line per lifecycle event to a spool file; the app tails it
 and aggregates by `tool/session_id`. The hook side is fire-and-forget (a single
 local file append) so it never blocks or slows the agent.
 
+> See [`docs/state-machine.html`](docs/state-machine.html) for the full event → state diagram.
+
 ## Requirements
 
 - macOS 14+
@@ -104,8 +106,10 @@ self-registers as a login item on first launch.
 
    ```json
    "hooks": {
-     "UserPromptSubmit": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<you>/.ag_notifier/spool.py claude running" }] }],
-     "Notification":     [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<you>/.ag_notifier/spool.py claude waiting" }] }],
+     "UserPromptSubmit":  [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<you>/.ag_notifier/spool.py claude running" }] }],
+     "PostToolUse":       [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<you>/.ag_notifier/spool.py claude running" }] }],
+     "PermissionRequest": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<you>/.ag_notifier/spool.py claude waiting" }] }],
+     "Notification":      [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<you>/.ag_notifier/spool.py claude waiting" }] }],
      "Stop":             [{ "matcher": "*", "hooks": [{ "type": "command", "command": "/usr/bin/python3 /Users/<you>/.ag_notifier/spool.py claude done" }] }]
    }
    ```

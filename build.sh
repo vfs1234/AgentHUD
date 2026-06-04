@@ -73,5 +73,9 @@ rm -rf "${DEST}/${APP}.app"
 cp -R "$APPDIR" "${DEST}/${APP}.app"
 xattr -dr com.apple.quarantine "${DEST}/${APP}.app" 2>/dev/null || true
 
+# Remove the transient build/ copy so it doesn't show up as a second "AgentHUD"
+# in Spotlight/Launchpad (it has the same bundle id as the installed copy).
+rm -rf "${PROJ}/build"
+
 echo "==> done: ${DEST}/${APP}.app"
 echo "    launch with: open \"${DEST}/${APP}.app\""
